@@ -1176,22 +1176,16 @@
             let html = '';
 
             kanbanData.yunying_vacancy.forEach(dept => {
-                html += `<tr class="region-row vacancy-row-yy" data-dept="${dept.name}" onclick="toggleYunyingVacancy('${dept.name}')">
-                    <td style="cursor:pointer;">
-                        <span class="expand-icon" id="icon-yy-${dept.name}">▶</span>
-                        <strong>${dept.name}</strong>
-                    </td>
-                    <td class="text-center">${dept.bian}</td>
-                    <td class="text-center">${dept.zai}</td>
-                    <td class="text-center ${dept.que > 0 ? 'que-positive' : 'que-negative'}">${dept.que > 0 ? '+' : ''}${dept.que}</td>
-                    <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
-                </tr>`;
-
-                dept.items.forEach(item => {
+                // Count items with vacancies
+                const vacancyItems = dept.items.filter(item => item.que !== 0);
+                
+                if (vacancyItems.length <= 1 && vacancyItems.length > 0) {
+                    // Flatten: show item directly as a row, no group wrapper
+                    const item = vacancyItems[0];
                     const hasGangwei = item.gangweis && item.gangweis.length > 0;
-                    html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();toggleYunyingVacancyItem('${dept.name}','${item.name}')">
-                        <td style="${hasGangwei ? 'cursor:pointer;' : ''}">
-                            ${hasGangwei ? '<span class="expand-icon" id="icon-yy-' + dept.name + '-' + item.name + '">▶</span>' : '<span style="margin-left:16px;"></span>'}
+                    html += `<tr class="vacancy-row-yy" ${hasGangwei ? `onclick="toggleYunyingVacancyItem('${dept.name}','${item.name}')" style="cursor:pointer;"` : ''}>
+                        <td style="${hasGangwei ? '' : 'padding-left:16px;'}">
+                            ${hasGangwei ? '<span class="expand-icon" id="icon-yy-' + dept.name + '-' + item.name + '">▶</span>' : ''}
                             ${item.name}
                         </td>
                         <td class="text-center">${item.bian}</td>
@@ -1199,21 +1193,65 @@
                         <td class="text-center ${item.que > 0 ? 'que-positive' : item.que < 0 ? 'que-negative' : ''}">${item.que > 0 ? '+' : ''}${item.que}</td>
                         <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
                     </tr>`;
-
+                    // Render gangweis directly (no sub-row wrapper)
                     if (hasGangwei) {
-                        item.gangweis.forEach(gw => {
-                            html += `<tr class="sub-row gangwei-row" data-parent-dept="${dept.name}" data-parent-item="${item.name}">
-                                <td>${gw.name}</td>
-                                <td class="text-center">-</td>
-                                <td class="text-center">-</td>
-                                <td class="text-center que-positive">+${gw.que}</td>
-                                <td class="text-center">-</td>
+                        item.gangweis.forEach(g => {
+                            html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" style="display:none;">
+                                <td style="padding-left:36px;">${g.name}</td>
+                                <td class="text-center"></td>
+                                <td class="text-center"></td>
+                                <td class="text-center que-positive">+${g.que}</td>
+                                <td class="text-center"></td>
                             </tr>`;
                         });
                     }
-                });
+                } else if (vacancyItems.length === 0) {
+                    // All items full - show group as full
+                    html += `<tr class="vacancy-row-yy">
+                        <td><strong>${dept.name}</strong></td>
+                        <td class="text-center">${dept.bian}</td>
+                        <td class="text-center">${dept.zai}</td>
+                        <td class="text-center">0</td>
+                        <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
+                    </tr>`;
+                } else {
+                    // Multiple vacancy items - show expandable group as before
+                    html += `<tr class="region-row vacancy-row-yy" data-dept="${dept.name}" onclick="toggleYunyingVacancy('${dept.name}')">
+                        <td style="cursor:pointer;">
+                            <span class="expand-icon" id="icon-yy-${dept.name}">▶</span>
+                            <strong>${dept.name}</strong>
+                        </td>
+                        <td class="text-center">${dept.bian}</td>
+                        <td class="text-center">${dept.zai}</td>
+                        <td class="text-center ${dept.que > 0 ? 'que-positive' : 'que-negative'}">${dept.que > 0 ? '+' : ''}${dept.que}</td>
+                        <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
+                    </tr>`;
+                    dept.items.forEach(item => {
+                        const hasGangwei = item.gangweis && item.gangweis.length > 0;
+                        html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();${hasGangwei ? "toggleYunyingVacancyItem('" + dept.name + "','" + item.name + "')" : ''}">
+                            <td style="${hasGangwei ? 'cursor:pointer;' : ''}">
+                                ${hasGangwei ? '<span class="expand-icon" id="icon-yy-' + dept.name + '-' + item.name + '">▶</span>' : '<span style="margin-left:16px;"></span>'}
+                                ${item.name}
+                            </td>
+                            <td class="text-center">${item.bian}</td>
+                            <td class="text-center">${item.zai}</td>
+                            <td class="text-center ${item.que > 0 ? 'que-positive' : item.que < 0 ? 'que-negative' : ''}">${item.que > 0 ? '+' : ''}${item.que}</td>
+                            <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
+                        </tr>`;
+                        if (hasGangwei) {
+                            item.gangweis.forEach(g => {
+                                html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" style="display:none;">
+                                    <td style="padding-left:36px;">${g.name}</td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center que-positive">+${g.que}</td>
+                                    <td class="text-center"></td>
+                                </tr>`;
+                            });
+                        }
+                    });
+                }
             });
-
             tbody.innerHTML = html;
         }
 
