@@ -1183,7 +1183,8 @@
                     // Flatten: show item directly as a row, no group wrapper
                     const item = vacancyItems[0];
                     const hasGangwei = item.gangweis && item.gangweis.length > 0;
-                    html += `<tr class="vacancy-row-yy" ${hasGangwei ? `onclick="toggleYunyingVacancyItem('${dept.name}','${item.name}')" style="cursor:pointer;"` : ''}>
+                    const flatClick = hasGangwei ? "onclick=\"toggleYunyingVacancyItem('" + dept.name + "','" + item.name + "')\" style=\"cursor:pointer;\"" : "";
+                    html += `<tr class="vacancy-row-yy" ${flatClick}>
                         <td style="${hasGangwei ? '' : 'padding-left:16px;'}">
                             ${hasGangwei ? '<span class="expand-icon" id="icon-yy-' + dept.name + '-' + item.name + '">▶</span>' : ''}
                             ${item.name}
