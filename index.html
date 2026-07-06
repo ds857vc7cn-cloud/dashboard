@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高中一对一部编制缺口看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f6f8;
+            color: #1f2329;
+            display: flex;
+            min-height: 100vh;
+        }
+        /* 左侧导航 */
+        .nav-menu {
+            width: 200px;
+            background: #fff;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .nav-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e6eb;
+        }
+        .nav-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #3370ff;
+        }
+        .nav-subtitle {
+            font-size: 12px;
+            color: #86909c;
+            margin-top: 4px;
+        }
+        .nav-list {
+            padding: 12px 0;
+        }
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            color: #4e5969;
+            font-size: 14px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover {
+            background: #f2f3f5;
+            color: #3370ff;
+        }
+        .nav-item.active {
+            background: #e6f0ff;
+            color: #3370ff;
+            border-left-color: #3370ff;
+            font-weight: 500;
+        }
+        /* 右侧内容区 */
+        .content-area {
+            margin-left: 200px;
+            flex: 1;
+            padding: 24px;
+            min-height: 100vh;
+        }
+        .module {
+            display: none;
+        }
+        .module.active {
+            display: block;
+        }
+        .module-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2329;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e6eb;
+        }
+        /* 卡片样式 */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .stat-card-label {
+            font-size: 13px;
+            color: #86909c;
+            margin-bottom: 8px;
+        }
+        .stat-card-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1f2329;
+        }
+        .stat-card-value.negative {
+            color: #34c724;
+        }
+        .stat-card-rate {
+            font-size: 13px;
+            color: #86909c;
+            margin-top: 4px;
+        }
+        .chart-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            margin-bottom: 24px;
+        }
+        .chart-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1f2329;
+            margin-bottom: 16px;
+        }
+        .chart-wrapper {
+            height: 320px;
+        }
+        .chart-wrapper-small {
+            height: 280px;
+        }
+        /* 表格样式 */
+        .table-container {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .data-table th {
+            background: #fafafa;
+            color: #4e5969;
+            font-weight: 500;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e6eb;
+        }
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f2f3f5;
+            color: #1f2329;
+        }
+        .data-table tr:hover {
+            background: #fafafa;
+        }
+        .data-table tr.subtotal {
+            background: #edf0f5;
+            font-weight: 500;
+        }
+        .data-table tr.subtotal td {
+            border-top: 1px solid #e5e6eb;
+        }
+        /* 列分组底色 */
+        .col-kc { background: rgba(51, 112, 255, 0.04); }
+        .col-xx { background: rgba(52, 199, 36, 0.04); }
+        .col-total { background: rgba(114, 46, 209, 0.04); }
+        
+        .rate-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .rate-high {
+            background: #e6f7e6;
+            color: #34c724;
+        }
+        .rate-medium {
+            background: #fff7e6;
+            color: #ff9d00;
+        }
+        .rate-low {
+            background: #ffeded;
+            color: #f54a45;
+        }
+        .que-positive {
+            color: #f54a45;
+        }
+        .que-negative {
+            color: #34c724;
+        }
+        /* 单数据卡片 */
+        .single-stat-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        .single-stat-item {
+            flex: 1;
+            text-align: center;
+        }
+        .single-stat-label {
+            font-size: 13px;
+            color: #86909c;
+            margin-bottom: 8px;
+        }
+        .single-stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #1f2329;
+        }
+        .single-stat-value.positive {
+            color: #f54a45;
+        }
+        .single-stat-value.negative {
+            color: #34c724;
+        }
+        /* 底部 */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #86909c;
+            font-size: 12px;
+            margin-top: 24px;
+        }
+        /* 双列布局 */
+        .row-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .text-center,
+        .data-table th.text-center,
+        .data-table td.text-center {
+            text-align: center !important;
+        }
+        .col-blue {
+            color: #3370ff;
+        }
+        .col-green {
+            color: #34c724;
+        }
+        .col-red {
+            color: #f54a45;
+        }
+        /* 进度条样式 */
+        .progress-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            margin-bottom: 16px;
+        }
+        .progress-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .progress-item:last-child {
+            margin-bottom: 0;
+        }
+        .progress-label {
+            width: 120px;
+            font-size: 14px;
+            color: #4e5969;
+            flex-shrink: 0;
+        }
+        .progress-bar-wrapper {
+            flex: 1;
+            height: 20px;
+            background: #f2f3f5;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 16px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        .progress-bar-fill.high {
+            background: linear-gradient(90deg, #34c724, #5dd85d);
+        }
+        .progress-bar-fill.medium {
+            background: linear-gradient(90deg, #3370ff, #5a8bff);
+        }
+        .progress-bar-fill.low {
+            background: linear-gradient(90deg, #ff9d00, #ffb84d);
+        }
+        .progress-info {
+            width: 140px;
+            text-align: right;
+            font-size: 13px;
+            color: #1f2329;
+            flex-shrink: 0;
+        }
+        .progress-info .num {
+            font-weight: 600;
+        }
+        .progress-info .que {
+            color: #f54a45;
+            margin-left: 8px;
+        }
+        .progress-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1f2329;
+            margin-bottom: 16px;
+        }
+        /* 总览进度条左右布局 */
+        .overview-mid-row {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .progress-panel {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .monthly-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .monthly-card {
+            flex: 1;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .monthly-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .monthly-icon.hire {
+            background: linear-gradient(135deg, #e6f7e6, #d0f0d0);
+            color: #34c724;
+        }
+        .monthly-icon.leave {
+            background: linear-gradient(135deg, #fff0e6, #ffe4cc);
+            color: #ff9d00;
+        }
+        .monthly-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .monthly-label {
+            font-size: 13px;
+            color: #86909c;
+            margin-bottom: 4px;
+        }
+        .monthly-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1f2329;
+            line-height: 1.2;
+        }
+        .monthly-value .unit {
+            font-size: 14px;
+            font-weight: 400;
+            color: #86909c;
+            margin-left: 2px;
+        }
+        /* 可折叠区域行 */
+        .region-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .region-row:hover {
+            background: #eef3ff !important;
+        }
+        .region-row td:first-child {
+            position: relative;
+            padding-left: 32px;
+        }
+        .toggle-arrow {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-left: 6px solid #86909c;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            transition: transform 0.2s ease;
+        }
+        .region-row.expanded .toggle-arrow {
+            transform: translateY(-50%) rotate(90deg);
+        }
+        .sub-row {
+            display: none;
+            background: #fafbfc;
+        }
+        .sub-row.visible {
+            display: table-row;
+        }
+        .sub-row td:first-child {
+            padding-left: 36px;
+            color: #4e5969;
+            font-size: 13px;
+        }
+        /* 第三层：岗位名称行 */
+.gangwei-row {
+            display: none;
+            background: #f2f3f5;
+        }
+        .gangwei-row.visible {
+            display: table-row;
+        }
+        .gangwei-row td {
+            padding-left: 52px !important;
+            color: #86909c;
+            font-size: 12px;
+        }
+        .gangwei-row td:first-child::before {
+            content: '•';
+            margin-right: 4px;
+            color: #c9cdd4;
+        }
+        .sub-row {
+            display: none;
+            background: #fafbfc;
+        }
+        .sub-row.visible {
+            display: table-row;
+        }
+        .sub-row td:first-child {
+            padding-left: 36px;
+            color: #4e5969;
+            font-size: 13px;
+        }
+        /* 三级部门行可点击 */
+        .vacancy-sub-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .vacancy-sub-row:hover {
+            background: #eef3ff !important;
+        }
+        .sub-row:hover {
+            background: #f0f4ff !important;
+        }
+        /* 增长中心三级部门行可点击 */
+        .vacancy-sub-row-zz {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .vacancy-sub-row-zz:hover {
+            background: #eef3ff !important;
+        }
+        /* 运营中心三级部门行可点击 */
+        .vacancy-sub-row-yy {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .vacancy-sub-row-yy:hover {
+            background: #eef3ff !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- 左侧导航 -->
+    <nav class="nav-menu">
+        <div class="nav-header">
+            <div class="nav-title">编制缺口看板</div>
+            <div class="nav-subtitle">高中一对一部</div>
+        </div>
+        <div class="nav-list">
+            <div class="nav-item active" data-module="overview">总览</div>
+            <div class="nav-item" data-module="region">区域端</div>
+            <div class="nav-item" data-module="teaching">教学端</div>
+            <div class="nav-item" data-module="growth">增长中心</div>
+            <div class="nav-item" data-module="operation">运营中心</div>
+        </div>
+    </nav>
+
+    <!-- 右侧内容区 -->
+    <main class="content-area">
+        <!-- 总览模块 -->
+        <div class="module active" id="module-overview">
+            <h2 class="module-title">总览</h2>
+            <div class="card-grid">
+                <div class="stat-card">
+                    <div class="stat-card-label">总编制</div>
+                    <div class="stat-card-value" id="total-bian">1,696<span style="font-size:14px;color:#86909c;">(含4临编)</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">总在岗</div>
+                    <div class="stat-card-value" id="total-zai">1,511</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">总缺口</div>
+                    <div class="stat-card-value" id="total-que">185</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">满编率</div>
+                    <div class="stat-card-value col-blue">89.1%</div>
+                </div>
+            </div>
+            
+            <!-- 进度条 + 月度入离职 左右布局 -->
+            <div class="overview-mid-row">
+                <div class="progress-panel">
+                    <div class="progress-title">岗位满编率</div>
+                    <div class="progress-item">
+                        <div class="progress-label">区域-课程顾问</div>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill medium" id="bar-kc" style="width: 93.7%;"></div>
+                        </div>
+                        <div class="progress-info">
+                            <span class="num" id="info-kc">104/111<span style="font-size:11px;color:#86909c;">(含2临编)</span></span>
+                            <span class="que">缺7</span>
+                        </div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-label">区域-学习顾问</div>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill medium" id="bar-xx" style="width: 84.0%;"></div>
+                        </div>
+                        <div class="progress-info">
+                            <span class="num" id="info-xx">79/94<span style="font-size:11px;color:#86909c;">(含1临编)</span></span>
+                            <span class="que">缺15</span>
+                        </div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-label">教师</div>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill low" id="bar-js" style="width: 88.2%;"></div>
+                        </div>
+                        <div class="progress-info">
+                            <span class="num">1116/1265</span>
+                            <span class="que">缺149</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="monthly-panel">
+                    <div class="monthly-card">
+                        <div class="monthly-icon hire">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                        </div>
+                        <div class="monthly-info">
+                            <div class="monthly-label">本月新入职</div>
+                            <div class="monthly-value" id="monthly-hire">--<span class="unit">人</span></div>
+                        </div>
+                    </div>
+                    <div class="monthly-card">
+                        <div class="monthly-icon leave">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
+                        </div>
+                        <div class="monthly-info">
+                            <div class="monthly-label">本月新离职</div>
+                            <div class="monthly-value" id="monthly-leave">--<span class="unit">人</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 区域端模块 -->
+        <div class="module" id="module-region">
+            <h2 class="module-title">区域端</h2>
+            <div class="table-container" style="margin-bottom: 24px;">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width: 11%;">
+                        <col style="width: 10%;" class="col-kc">
+                        <col style="width: 10%;" class="col-kc">
+                        <col style="width: 10%;" class="col-kc">
+                        <col style="width: 10%;" class="col-xx">
+                        <col style="width: 10%;" class="col-xx">
+                        <col style="width: 10%;" class="col-xx">
+                        <col style="width: 10%;" class="col-total">
+                        <col style="width: 10%;" class="col-total">
+                        <col style="width: 10%;" class="col-total">
+                        <col style="width: 9%;" class="col-total">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="text-center">区域</th>
+                            <th class="text-center" colspan="3">课程顾问</th>
+                            <th class="text-center" colspan="3">学习顾问</th>
+                            <th class="text-center" colspan="4">合计</th>
+                        </tr>
+                        <tr>
+                            <th class="text-center">编制</th>
+                            <th class="text-center">在岗</th>
+                            <th class="text-center">缺口</th>
+                            <th class="text-center">编制</th>
+                            <th class="text-center">在岗</th>
+                            <th class="text-center">缺口</th>
+                            <th class="text-center">编制</th>
+                            <th class="text-center">在岗</th>
+                            <th class="text-center">缺口</th>
+                            <th class="text-center">满编率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="region-table-body"></tbody>
+                </table>
+            </div>
+            <div style="font-size:12px;color:#86909c;margin-top:8px;padding:0 4px;">* 合计列包含管理岗（各区域高级主管、经理等），管理岗不在表中单独展示</div>
+            <div class="chart-container">
+                <div class="chart-title">各区域编制与在岗对比</div>
+                <div class="chart-wrapper" id="chart-region"></div>
+            </div>
+        </div>
+
+        <!-- 教学端模块 -->
+        <div class="module" id="module-teaching">
+            <h2 class="module-title">教学端</h2>
+            <div class="table-container">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width: 20%;">
+                        <col style="width: 20%;" class="col-kc">
+                        <col style="width: 20%;" class="col-xx">
+                        <col style="width: 20%;" class="col-total">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="text-center">项目</th>
+                            <th class="text-center">编制</th>
+                            <th class="text-center">在岗</th>
+                            <th class="text-center">缺口</th>
+                            <th class="text-center">满编率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jiaoxue-table-body"></tbody>
+                </table>
+            </div>
+            <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px; color: #1f2329;">空缺岗位详情</h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width: 25%;">
+                        <col style="width: 20%;">
+                        <col style="width: 20%;">
+                        <col style="width: 15%;">
+                        <col style="width: 20%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="text-center">部门/项目组</th>
+                            <th class="text-center">编制</th>
+                            <th class="text-center">在岗</th>
+                            <th class="text-center">缺口</th>
+                            <th class="text-center">满编率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jiaoxue-vacancy-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 增长中心模块 -->
+        <div class="module" id="module-growth">
+            <h2 class="module-title">增长中心</h2>
+            <div class="single-stat-card">
+                <div class="single-stat-item">
+                    <div class="single-stat-label">编制</div>
+                    <div class="single-stat-value" id="growth-bian">80</div>
+                </div>
+                <div class="single-stat-item">
+                    <div class="single-stat-label">在岗</div>
+                    <div class="single-stat-value" id="growth-zai">76</div>
+                </div>
+                <div class="single-stat-item">
+                    <div class="single-stat-label">缺口</div>
+                    <div class="single-stat-value positive" id="growth-que">4</div>
+                </div>
+                <div class="single-stat-item">
+                    <div class="single-stat-label">满编率</div>
+                    <div class="single-stat-value col-green">95.0%</div>
+                </div>
+            </div>
+            <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px; color: #1f2329;">空缺岗位详情</h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width: 25%;">
+                        <col style="width: 20%;">
+                        <col style="width: 20%;">
+                        <col style="width: 15%;">
+                        <col style="width: 20%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="text-center">部门/项目组</th>
+                            <th class="text-center">编制</th>
+                            <th class="text-center">在岗</th>
+                            <th class="text-center">缺口</th>
+                            <th class="text-center">满编率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="zengzhang-vacancy-body"></tbody>
+                </table>
+            </div>
+            <div style="font-size:12px;color:#86909c;margin-top:8px;padding:0 4px;">* 三级部门空缺明细合计(6)与总缺口(4)差异：商务渠道组超编1人、增长中心管理岗超编1人，抵消后净缺口4人</div>
+        </div>
+
+        <!-- 运营中心模块 -->
+        <div class="module" id="module-operation">
+            <h2 class="module-title">运营中心</h2>
+            <div class="single-stat-card">
+                <div class="single-stat-item">
+                    <div class="single-stat-label">编制</div>
+                    <div class="single-stat-value" id="yunying-bian">41<span style="font-size:14px;color:#86909c;">(含1临编)</span></div>
+                </div>
+                <div class="single-stat-item">
+                    <div class="single-stat-label">在岗</div>
+                    <div class="single-stat-value" id="yunying-zai">37</div>
+                </div>
+                <div class="single-stat-item">
+                    <div class="single-stat-label">缺口</div>
+                    <div class="single-stat-value positive" id="yunying-que">4</div>
+                </div>
+                <div class="single-stat-item">
+                    <div class="single-stat-label">满编率</div>
+                    <div class="single-stat-value" style="color: #ff9d00;">90.2%</div>
+                </div>
+            </div>
+            <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px; color: #1f2329;">空缺岗位详情</h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width: 25%;">
+                        <col style="width: 20%;">
+                        <col style="width: 20%;">
+                        <col style="width: 15%;">
+                        <col style="width: 20%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="text-center">部门/项目组</th>
+                            <th class="text-center">编制</th>
+                            <th class="text-center">在岗</th>
+                            <th class="text-center">缺口</th>
+                            <th class="text-center">满编率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="yunying-vacancy-body"></tbody>
+                </table>
+            </div>
+            <div style="font-size:12px;color:#86909c;margin-top:8px;padding:0 4px;">* 三级部门空缺明细合计(4)与总缺口(4)一致</div>
+        </div>
+
+        <div class="footer">
+            数据更新时间：2026年7月2日
+        </div>
+    </main>
+
+    <script>
+        // 内嵌JSON数据
+        const kanbanData = {"total":{"bian":1696,"zai":1511,"que":185,"man_rate":89.1},"ports":{"区域端":{"bian":230,"zai":210,"que":20,"man_rate":91.3},"教学端":{"bian":77,"zai":69,"que":8,"man_rate":89.6},"增长中心":{"bian":80,"zai":76,"que":4,"man_rate":95.0},"运营中心":{"bian":41,"zai":37,"que":4,"man_rate":90.2},"总部":{"bian":3,"zai":3,"que":0,"man_rate":100.0},"教师":{"bian":1265,"zai":1116,"que":149,"man_rate":88.2}},"region_summary":[{"name":"东北区","kc_bian":25,"kc_zai":21,"kc_que":4,"xx_bian":21,"xx_zai":18,"xx_que":3,"gl_bian":6,"gl_zai":6,"gl_que":0,"total_bian":52,"total_zai":45,"total_que":7,"man_rate":86.5},{"name":"东南区","kc_bian":25,"kc_zai":25,"kc_que":0,"xx_bian":20,"xx_zai":18,"xx_que":2,"gl_bian":6,"gl_zai":7,"gl_que":-1,"total_bian":51,"total_zai":50,"total_que":1,"man_rate":98.0},{"name":"西北区","kc_bian":32,"kc_zai":31,"kc_que":1,"xx_bian":28,"xx_zai":22,"xx_que":6,"gl_bian":7,"gl_zai":8,"gl_que":-1,"total_bian":67,"total_zai":61,"total_que":6,"man_rate":91.0},{"name":"西南区","kc_bian":29,"kc_zai":27,"kc_que":2,"xx_bian":25,"xx_zai":21,"xx_que":4,"gl_bian":6,"gl_zai":6,"gl_que":0,"total_bian":60,"total_zai":54,"total_que":6,"man_rate":90.0}],"fenzhong_data":[{"name":"望京","region":"东北区","kc_bian":7,"kc_zai":5,"kc_que":2,"xx_bian":6,"xx_zai":7,"xx_que":-1,"total_bian":13,"total_zai":12,"total_que":1,"man_rate":92.3},{"name":"东四","region":"东北区","kc_bian":7,"kc_zai":6,"kc_que":1,"xx_bian":7,"xx_zai":5,"xx_que":2,"total_bian":14,"total_zai":11,"total_que":3,"man_rate":78.6},{"name":"亚运村","region":"东北区","kc_bian":4,"kc_zai":3,"kc_que":1,"xx_bian":3,"xx_zai":1,"xx_que":2,"total_bian":7,"total_zai":4,"total_que":3,"man_rate":57.1},{"name":"团结湖","region":"东北区","kc_bian":7,"kc_zai":7,"kc_que":0,"xx_bian":5,"xx_zai":5,"xx_que":0,"total_bian":12,"total_zai":12,"total_que":0,"man_rate":100.0},{"name":"蒲黄榆","region":"东南区","kc_bian":5,"kc_zai":6,"kc_que":-1,"xx_bian":5,"xx_zai":5,"xx_que":0,"total_bian":10,"total_zai":11,"total_que":-1,"man_rate":110.0},{"name":"平安里","region":"东南区","kc_bian":5,"kc_zai":5,"kc_que":0,"xx_bian":3,"xx_zai":3,"xx_que":0,"total_bian":8,"total_zai":8,"total_que":0,"man_rate":100.0},{"name":"广安门","region":"东南区","kc_bian":6,"kc_zai":5,"kc_que":1,"xx_bian":5,"xx_zai":4,"xx_que":1,"total_bian":11,"total_zai":9,"total_que":2,"man_rate":81.8},{"name":"崇文门","region":"东南区","kc_bian":9,"kc_zai":9,"kc_que":0,"xx_bian":7,"xx_zai":6,"xx_que":1,"total_bian":16,"total_zai":15,"total_que":1,"man_rate":93.8},{"name":"北太平庄","region":"西北区","kc_bian":6,"kc_zai":6,"kc_que":0,"xx_bian":6,"xx_zai":5,"xx_que":1,"total_bian":12,"total_zai":11,"total_que":1,"man_rate":91.7},{"name":"水清木华","region":"西北区","kc_bian":3,"kc_zai":4,"kc_que":-1,"xx_bian":3,"xx_zai":3,"xx_que":0,"total_bian":6,"total_zai":7,"total_que":-1,"man_rate":116.7},{"name":"中关村","region":"西北区","kc_bian":7,"kc_zai":6,"kc_que":1,"xx_bian":4,"xx_zai":3,"xx_que":1,"total_bian":11,"total_zai":9,"total_que":2,"man_rate":81.8},{"name":"知春路","region":"西北区","kc_bian":9,"kc_zai":8,"kc_que":1,"xx_bian":9,"xx_zai":6,"xx_que":3,"total_bian":18,"total_zai":14,"total_que":4,"man_rate":77.8},{"name":"清河","region":"西北区","kc_bian":7,"kc_zai":7,"kc_que":0,"xx_bian":6,"xx_zai":5,"xx_que":1,"total_bian":13,"total_zai":12,"total_que":1,"man_rate":92.3},{"name":"公主坟","region":"西南区","kc_bian":8,"kc_zai":7,"kc_que":1,"xx_bian":9,"xx_zai":8,"xx_que":1,"total_bian":17,"total_zai":15,"total_que":2,"man_rate":88.2},{"name":"玉泉路","region":"西南区","kc_bian":11,"kc_zai":11,"kc_que":0,"xx_bian":9,"xx_zai":7,"xx_que":2,"total_bian":20,"total_zai":18,"total_que":2,"man_rate":90.0},{"name":"泥洼","region":"西南区","kc_bian":4,"kc_zai":4,"kc_que":0,"xx_bian":3,"xx_zai":2,"xx_que":1,"total_bian":7,"total_zai":6,"total_que":1,"man_rate":85.7},{"name":"魏公村","region":"西南区","kc_bian":6,"kc_zai":5,"kc_que":1,"xx_bian":4,"xx_zai":4,"xx_que":0,"total_bian":10,"total_zai":9,"total_que":1,"man_rate":90.0}],"jiaoxue_data":[{"name":"金牌项目","bian":4,"zai":4,"que":0,"man_rate":100.0},{"name":"高中项目","bian":60,"zai":58,"que":2,"man_rate":96.7},{"name":"初中项目","bian":13,"zai":7,"que":6,"man_rate":53.8}],"gangwei_summary":{"kc_bian":111,"kc_zai":104,"kc_que":7,"xx_bian":94,"xx_zai":79,"xx_que":15},"zengzhang_data":{"bian":80,"zai":76,"que":4},"zengzhang_vacancy":[{"name":"线上新媒体组","bian":17,"zai":12,"que":5,"man_rate":70.6,"items":[{"name":"管理岗","bian":1,"zai":1,"que":0,"man_rate":100.0,"gangweis":[]},{"name":"新媒体运营专员","bian":16,"zai":11,"que":5,"man_rate":68.8,"gangweis":[{"name":"新媒体运营（高级）专员","que":5}]}]},{"name":"线上社群组","bian":16,"zai":15,"que":1,"man_rate":93.8,"items":[{"name":"管理岗","bian":1,"zai":1,"que":0,"man_rate":100.0,"gangweis":[]},{"name":"社群运营主管","bian":2,"zai":2,"que":0,"man_rate":100.0,"gangweis":[]},{"name":"社群运营专员","bian":13,"zai":12,"que":1,"man_rate":92.3,"gangweis":[{"name":"社群运营（高级）专员","que":1}]}]}],"yunying_data":{"bian":41,"zai":37,"que":4},"yunying_vacancy":[{"name": "学管管理组", "bian": 9, "zai": 7, "que": 2, "man_rate": 77.8, "items": [{"name": "学管管理经理", "bian": 1, "zai": 1, "que": 0, "man_rate": 100.0, "gangweis": []}, {"name": "学管管理（高级）专员", "bian": 8, "zai": 5, "que": 3, "man_rate": 62.5, "gangweis": [{"name": "学管管理（高级）专员", "que": 3}]}]}, {"name": "销售管理组", "bian": 10, "zai": 7, "que": 3, "man_rate": 70.0, "items": [{"name": "销售管理经理", "bian": 1, "zai": 1, "que": 0, "man_rate": 100.0, "gangweis": []}, {"name": "销售管理（高级）专员", "bian": 9, "zai": 5, "que": 4, "man_rate": 55.6, "gangweis": [{"name": "销售管理（高级）专员", "que": 4}]}]}],"temp_data":{"fenzhong":{"崇文门":{"kc":2,"xx":0},"广安门":{"kc":0,"xx":1}},"region":{"东南区":{"kc":2,"xx":1,"total":3}},"yunying":1},"monthly":{"hire":1,"leave":0},"jiaoxue_vacancy":[{"name":"初中项目","bian":13,"zai":7,"que":6,"man_rate":53.8,"items":[{"name":"管理岗","bian":3,"zai":1,"que":2,"man_rate":33.3,"gangweis":[{"name":"初中中台高级主管","que":1},{"name":"初中教学高级主管","que":1}]},{"name":"产品组","bian":1,"zai":0,"que":1,"man_rate":0.0,"gangweis":[{"name":"研发（高级）专员","que":1}]},{"name":"初中数学项目","bian":2,"zai":1,"que":1,"man_rate":50.0,"gangweis":[{"name":"（*级）项目专员","que":1}]},{"name":"初中英语项目","bian":2,"zai":1,"que":1,"man_rate":50.0,"gangweis":[{"name":"项目主管","que":1},{"name":"（*级）项目专员","que":1}]},{"name":"初中语文项目","bian":2,"zai":1,"que":1,"man_rate":50.0,"gangweis":[{"name":"项目主管","que":1},{"name":"（*级）项目专员","que":1}]}]},{"name":"高中项目","bian":60,"zai":58,"que":2,"man_rate":96.7,"items":[{"name":"管理岗","bian":3,"zai":2,"que":1,"man_rate":66.7,"gangweis":[{"name":"高中项目经理","que":1},{"name":"高中教学项目经理","que":1}]},{"name":"培训组","bian":6,"zai":3,"que":3,"man_rate":50.0,"gangweis":[{"name":"培训高级主管","que":1},{"name":"培训（高级）专员","que":2}]}]}]};
+
+        // 工具函数
+        function formatNum(n) {
+            return Number(n).toLocaleString();
+        }
+        
+        function getRateClass(rate) {
+            if (rate >= 95) return 'rate-high';
+            if (rate >= 80) return 'rate-medium';
+            return 'rate-low';
+        }
+        
+        function getQueClass(que) {
+            return que < 0 ? 'que-negative' : (que > 0 ? 'que-positive' : '');
+        }
+        
+        function formatQue(que) {
+            return que < 0 ? que.toString() : '+' + que;
+        }
+
+        function formatBian(n, temp) {
+            if (temp && temp > 0) {
+                return formatNum(n) + '<span style="font-size:11px;color:#86909c;">(含' + temp + '临编)</span>';
+            }
+            return formatNum(n);
+        }
+
+        // 图表实例
+        let chartRegion;
+
+        // 导航切换
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+                this.classList.add('active');
+                const moduleId = 'module-' + this.dataset.module;
+                document.getElementById(moduleId).classList.add('active');
+                
+                // 图表resize
+                setTimeout(() => {
+                    if (this.dataset.module === 'region') {
+                        chartRegion?.resize();
+                    }
+                }, 50);
+            });
+        });
+
+        // 初始化总览数据
+        document.getElementById('total-bian').innerHTML = formatNum(1696) + '<span style="font-size:14px;color:#86909c;">(含4临编)</span>';
+        document.getElementById('total-zai').textContent = formatNum(kanbanData.total.zai);
+        document.getElementById('total-que').textContent = formatNum(kanbanData.total.que);
+
+        // 初始化进度条
+        function initProgressBars() {
+            const kcRate = kanbanData.gangwei_summary.kc_zai / kanbanData.gangwei_summary.kc_bian * 100;
+            const xxRate = kanbanData.gangwei_summary.xx_zai / kanbanData.gangwei_summary.xx_bian * 100;
+            const jsRate = kanbanData.ports['教师'].zai / kanbanData.ports['教师'].bian * 100;
+            
+            // 课程顾问进度条
+            const barKc = document.getElementById('bar-kc');
+            barKc.style.width = kcRate.toFixed(1) + '%';
+            barKc.className = 'progress-bar-fill ' + getProgressClass(kcRate);
+            const kcTemp = kanbanData.temp_data.region ? Object.values(kanbanData.temp_data.region).reduce((s, r) => s + (r.kc || 0), 0) : 0;
+            document.getElementById('info-kc').innerHTML = kanbanData.gangwei_summary.kc_zai + '/' + kanbanData.gangwei_summary.kc_bian + formatBian(0, kcTemp).replace(/^0/, '');
+            
+            // 学习顾问进度条
+            const barXx = document.getElementById('bar-xx');
+            barXx.style.width = xxRate.toFixed(1) + '%';
+            barXx.className = 'progress-bar-fill ' + getProgressClass(xxRate);
+            const xxTemp = kanbanData.temp_data.region ? Object.values(kanbanData.temp_data.region).reduce((s, r) => s + (r.xx || 0), 0) : 0;
+            document.getElementById('info-xx').innerHTML = kanbanData.gangwei_summary.xx_zai + '/' + kanbanData.gangwei_summary.xx_bian + formatBian(0, xxTemp).replace(/^0/, '');
+            
+            // 教师进度条
+            const barJs = document.getElementById('bar-js');
+            barJs.style.width = jsRate.toFixed(1) + '%';
+            barJs.className = 'progress-bar-fill ' + getProgressClass(jsRate);
+        }
+        
+        function getProgressClass(rate) {
+            if (rate >= 95) return 'high';
+            if (rate >= 80) return 'medium';
+            return 'low';
+        }
+
+        // 初始化区域端表格（可折叠分中心）
+        function initRegionTable() {
+            const tbody = document.getElementById('region-table-body');
+            let html = '';
+            const tempRegion = kanbanData.temp_data.region;
+            
+            kanbanData.region_summary.forEach(r => {
+                const rTemp = tempRegion[r.name] || {};
+                // 区域汇总行（可点击展开）
+                html += `<tr class="region-row" data-region="${r.name}" onclick="toggleRegion('${r.name}')">
+                    <td class="text-center"><span class="toggle-arrow"></span><strong>${r.name}</strong></td>
+                    <td class="text-center">${formatBian(r.kc_bian, rTemp.kc)}</td>
+                    <td class="text-center">${formatNum(r.kc_zai)}</td>
+                    <td class="text-center ${getQueClass(r.kc_que)}">${formatQue(r.kc_que)}</td>
+                    <td class="text-center">${formatBian(r.xx_bian, rTemp.xx)}</td>
+                    <td class="text-center">${formatNum(r.xx_zai)}</td>
+                    <td class="text-center ${getQueClass(r.xx_que)}">${formatQue(r.xx_que)}</td>
+                    <td class="text-center"><strong>${formatBian(r.total_bian, rTemp.total)}</strong></td>
+                    <td class="text-center"><strong>${formatNum(r.total_zai)}</strong></td>
+                    <td class="text-center ${getQueClass(r.total_que)}"><strong>${formatQue(r.total_que)}</strong></td>
+                    <td class="text-center"><span class="rate-badge ${getRateClass(r.man_rate)}">${r.man_rate.toFixed(1)}%</span></td>
+                </tr>`;
+                
+                // 分中心子行（默认隐藏）
+                const items = kanbanData.fenzhong_data.filter(f => f.region === r.name);
+                const tempFz = kanbanData.temp_data.fenzhong;
+                items.forEach(item => {
+                    const fTemp = tempFz[item.name] || {};
+                    html += `<tr class="sub-row" data-parent="${r.name}">
+                        <td class="text-center">${item.name}</td>
+                        <td class="text-center">${formatBian(item.kc_bian, fTemp.kc)}</td>
+                        <td class="text-center">${formatNum(item.kc_zai)}</td>
+                        <td class="text-center ${getQueClass(item.kc_que)}">${formatQue(item.kc_que)}</td>
+                        <td class="text-center">${formatBian(item.xx_bian, fTemp.xx)}</td>
+                        <td class="text-center">${formatNum(item.xx_zai)}</td>
+                        <td class="text-center ${getQueClass(item.xx_que)}">${formatQue(item.xx_que)}</td>
+                        <td class="text-center"><strong>${formatNum(item.total_bian)}</strong></td>
+                        <td class="text-center"><strong>${formatNum(item.total_zai)}</strong></td>
+                        <td class="text-center ${getQueClass(item.total_que)}"><strong>${formatQue(item.total_que)}</strong></td>
+                        <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
+                    </tr>`;
+                });
+            });
+            
+            // 合计行（含管理岗）
+            const totalKc = kanbanData.region_summary.reduce((s, r) => s + r.kc_bian, 0);
+            const totalKcZai = kanbanData.region_summary.reduce((s, r) => s + r.kc_zai, 0);
+            const totalKcQue = kanbanData.region_summary.reduce((s, r) => s + r.kc_que, 0);
+            const totalXx = kanbanData.region_summary.reduce((s, r) => s + r.xx_bian, 0);
+            const totalXxZai = kanbanData.region_summary.reduce((s, r) => s + r.xx_zai, 0);
+            const totalXxQue = kanbanData.region_summary.reduce((s, r) => s + r.xx_que, 0);
+            const totalBian = kanbanData.region_summary.reduce((s, r) => s + r.total_bian, 0);
+            const totalZai = kanbanData.region_summary.reduce((s, r) => s + r.total_zai, 0);
+            const totalQue = kanbanData.region_summary.reduce((s, r) => s + r.total_que, 0);
+            const totalRate = (totalZai / totalBian * 100).toFixed(1);
+            const totalTemp = Object.values(kanbanData.temp_data.region).reduce((s, r) => s + (r.total || 0), 0);
+            html += `<tr class="subtotal">
+                <td class="text-center"><strong>合计</strong></td>
+                <td class="text-center col-kc">${formatNum(totalKc)}</td>
+                <td class="text-center col-kc">${formatNum(totalKcZai)}</td>
+                <td class="text-center col-kc ${getQueClass(totalKcQue)}">${formatQue(totalKcQue)}</td>
+                <td class="text-center col-xx">${formatNum(totalXx)}</td>
+                <td class="text-center col-xx">${formatNum(totalXxZai)}</td>
+                <td class="text-center col-xx ${getQueClass(totalXxQue)}">${formatQue(totalXxQue)}</td>
+                <td class="text-center col-total"><strong>${formatBian(totalBian, totalTemp)}</strong></td>
+                <td class="text-center col-total"><strong>${formatNum(totalZai)}</strong></td>
+                <td class="text-center col-total ${getQueClass(totalQue)}"><strong>${formatQue(totalQue)}</strong></td>
+                <td class="text-center col-total"><span class="rate-badge ${getRateClass(parseFloat(totalRate))}">${totalRate}%</span></td>
+            </tr>`;
+            tbody.innerHTML = html;
+        }
+
+        // 折叠/展开区域分中心
+        function toggleRegion(regionName) {
+            const row = document.querySelector(`.region-row[data-region="${regionName}"]`);
+            const subRows = document.querySelectorAll(`.sub-row[data-parent="${regionName}"]`);
+            const isExpanded = row.classList.contains('expanded');
+            
+            if (isExpanded) {
+                row.classList.remove('expanded');
+                subRows.forEach(r => r.classList.remove('visible'));
+            } else {
+                row.classList.add('expanded');
+                subRows.forEach(r => r.classList.add('visible'));
+            }
+        }
+
+        // 初始化区域对比图
+        function initRegionChart() {
+            const dom = document.getElementById('chart-region');
+            echarts.getInstanceByDom(dom)?.dispose();
+            chartRegion = echarts.init(dom);
+            
+            const regionNames = kanbanData.region_summary.map(r => r.name);
+            const bianData = kanbanData.region_summary.map(r => r.total_bian);
+            const zaiData = kanbanData.region_summary.map(r => r.total_zai);
+            
+            chartRegion.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { data: ['编制', '在岗'], bottom: 0 },
+                grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+                xAxis: { type: 'category', data: regionNames, axisLabel: { fontSize: 12 } },
+                yAxis: { type: 'value', name: '人数' },
+                series: [
+                    { name: '编制', type: 'bar', data: bianData, itemStyle: { color: '#3370ff' }, barWidth: '30%' },
+                    { name: '在岗', type: 'bar', data: zaiData, itemStyle: { color: '#8eb9ff' }, barWidth: '30%' }
+                ]
+            });
+        }
+
+        // 初始化教学端表格
+        function initJiaoxueTable() {
+            const tbody = document.getElementById('jiaoxue-table-body');
+            let html = '';
+            kanbanData.jiaoxue_data.forEach(item => {
+                html += `<tr>
+                    <td class="text-center"><strong>${item.name}</strong></td>
+                    <td class="text-center">${formatNum(item.bian)}</td>
+                    <td class="text-center">${formatNum(item.zai)}</td>
+                    <td class="text-center ${getQueClass(item.que)}">${formatQue(item.que)}</td>
+                    <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
+                </tr>`;
+            });
+            // 合计
+            const totalBian = kanbanData.jiaoxue_data.reduce((s, r) => s + r.bian, 0);
+            const totalZai = kanbanData.jiaoxue_data.reduce((s, r) => s + r.zai, 0);
+            const totalQue = kanbanData.jiaoxue_data.reduce((s, r) => s + r.que, 0);
+            const totalRate = (totalZai / totalBian * 100).toFixed(1);
+            html += `<tr class="subtotal">
+                <td class="text-center col-total"><strong>合计</strong></td>
+                <td class="text-center col-total"><strong>${formatNum(totalBian)}</strong></td>
+                <td class="text-center col-total"><strong>${formatNum(totalZai)}</strong></td>
+                <td class="text-center col-total ${getQueClass(totalQue)}"><strong>${formatQue(totalQue)}</strong></td>
+                <td class="text-center col-total"><span class="rate-badge ${getRateClass(parseFloat(totalRate))}">${totalRate}%</span></td>
+            </tr>`;
+            tbody.innerHTML = html;
+        }
+
+        // 初始化教学端空缺岗位详情表格（可折叠）
+        function initJiaoxueVacancyTable() {
+            const tbody = document.getElementById('jiaoxue-vacancy-body');
+            let html = '';
+            // 只显示有空缺的二级部门
+            const vacancyDepts = kanbanData.jiaoxue_vacancy.filter(dept => dept.que > 0);
+            vacancyDepts.forEach(dept => {
+                // 二级部门汇总行（可点击展开）
+                const hasItems = dept.items && dept.items.length > 0;
+                const arrowClass = hasItems ? '' : 'style="visibility:hidden"';
+                html += `<tr class="region-row vacancy-row" data-dept="${dept.name}" onclick="toggleVacancy('${dept.name}')">
+                    <td class="text-center"><span class="toggle-arrow" ${arrowClass}></span><strong>${dept.name}</strong></td>
+                    <td class="text-center">${formatNum(dept.bian)}</td>
+                    <td class="text-center">${formatNum(dept.zai)}</td>
+                    <td class="text-center ${getQueClass(dept.que)}">${formatQue(dept.que)}</td>
+                    <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
+                </tr>`;
+                // 三级部门行（默认隐藏，可点击展开）
+                if (hasItems) {
+                    dept.items.forEach(item => {
+                        const hasGangweis = item.gangweis && item.gangweis.length > 0;
+                        const itemArrowClass = hasGangweis ? '' : 'style="visibility:hidden"';
+                        html += `<tr class="sub-row vacancy-sub vacancy-sub-row" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();toggleVacancyItem('${dept.name}','${item.name}')">
+                            <td class="text-center" style="position:relative;padding-left:36px"><span class="toggle-arrow" ${itemArrowClass}></span>${item.name}</td>
+                            <td class="text-center">${formatNum(item.bian)}</td>
+                            <td class="text-center">${formatNum(item.zai)}</td>
+                            <td class="text-center ${getQueClass(item.que)}">${formatQue(item.que)}</td>
+                            <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
+                        </tr>`;
+                        // 岗位名称行（默认隐藏）
+                        if (hasGangweis) {
+                            item.gangweis.forEach(gw => {
+                                html += `<tr class="gangwei-row vacancy-gangwei" data-parent-dept="${dept.name}" data-parent-item="${item.name}">
+                                    <td class="text-center">${gw.name}</td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center ${getQueClass(gw.que)}">缺${gw.que}</td>
+                                    <td class="text-center"></td>
+                                </tr>`;
+                            });
+                        }
+                    });
+                }
+            });
+            // 合计（只计算有空缺的部门）
+            const totalBian = vacancyDepts.reduce((s, r) => s + r.bian, 0);
+            const totalZai = vacancyDepts.reduce((s, r) => s + r.zai, 0);
+            const totalQue = vacancyDepts.reduce((s, r) => s + r.que, 0);
+            const totalRate = (totalZai / totalBian * 100).toFixed(1);
+            html += `<tr class="subtotal">
+                <td class="text-center col-total"><strong>合计</strong></td>
+                <td class="text-center col-total"><strong>${formatNum(totalBian)}</strong></td>
+                <td class="text-center col-total"><strong>${formatNum(totalZai)}</strong></td>
+                <td class="text-center col-total ${getQueClass(totalQue)}"><strong>${formatQue(totalQue)}</strong></td>
+                <td class="text-center col-total"><span class="rate-badge ${getRateClass(parseFloat(totalRate))}">${totalRate}%</span></td>
+            </tr>`;
+            tbody.innerHTML = html;
+        }
+
+        // 折叠/展开二级部门
+        function toggleVacancy(deptName) {
+            const row = document.querySelector(`.vacancy-row[data-dept="${deptName}"]`);
+            const subRows = document.querySelectorAll(`.vacancy-sub[data-parent="${deptName}"]`);
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                subRows.forEach(r => {
+                    r.classList.remove('visible');
+                    r.classList.remove('expanded');
+                    // 同时隐藏岗位行
+                    const itemName = r.getAttribute('data-item');
+                    document.querySelectorAll(`.vacancy-gangwei[data-parent-dept="${deptName}"][data-parent-item="${itemName}"]`).forEach(gw => gw.classList.remove('visible'));
+                });
+            } else {
+                row.classList.add('expanded');
+                subRows.forEach(r => r.classList.add('visible'));
+            }
+        }
+
+        // 折叠/展开三级部门（显示岗位名称）
+        function toggleVacancyItem(deptName, itemName) {
+            const row = document.querySelector(`.vacancy-sub-row[data-parent="${deptName}"][data-item="${itemName}"]`);
+            const gangweiRows = document.querySelectorAll(`.vacancy-gangwei[data-parent-dept="${deptName}"][data-parent-item="${itemName}"]`);
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                gangweiRows.forEach(r => r.classList.remove('visible'));
+            } else {
+                row.classList.add('expanded');
+                gangweiRows.forEach(r => r.classList.add('visible'));
+            }
+        }
+
+        // 初始化增长中心空缺岗位详情表格（可折叠）
+        function initZengzhangVacancyTable() {
+            const tbody = document.getElementById('zengzhang-vacancy-body');
+            let html = '';
+            // 只显示有空缺的三级部门
+            const vacancyDepts = kanbanData.zengzhang_vacancy.filter(dept => dept.que > 0);
+            vacancyDepts.forEach(dept => {
+                const hasItems = dept.items && dept.items.length > 0;
+                const arrowClass = hasItems ? '' : 'style="visibility:hidden"';
+                html += `<tr class="region-row vacancy-row-zz" data-dept="${dept.name}" onclick="toggleZengzhangVacancy('${dept.name}')">
+                    <td class="text-center"><span class="toggle-arrow" ${arrowClass}></span><strong>${dept.name}</strong></td>
+                    <td class="text-center">${formatNum(dept.bian)}</td>
+                    <td class="text-center">${formatNum(dept.zai)}</td>
+                    <td class="text-center ${getQueClass(dept.que)}">${formatQue(dept.que)}</td>
+                    <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
+                </tr>`;
+                if (hasItems) {
+                    dept.items.forEach(item => {
+                        // 只展示有空缺或超编的三级部门
+                        if (item.que === 0) return;
+                        const hasGangweis = item.gangweis && item.gangweis.length > 0;
+                        const itemArrowClass = hasGangweis ? '' : 'style="visibility:hidden"';
+                        html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-zz" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();toggleZengzhangVacancyItem('${dept.name}','${item.name}')">
+                            <td class="text-center" style="position:relative;padding-left:36px"><span class="toggle-arrow" ${itemArrowClass}></span>${item.name}</td>
+                            <td class="text-center">${formatNum(item.bian)}</td>
+                            <td class="text-center">${formatNum(item.zai)}</td>
+                            <td class="text-center ${getQueClass(item.que)}">${formatQue(item.que)}</td>
+                            <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
+                        </tr>`;
+                        if (hasGangweis) {
+                            item.gangweis.forEach(gw => {
+                                html += `<tr class="gangwei-row vacancy-gangwei-zz" data-parent-dept="${dept.name}" data-parent-item="${item.name}">
+                                    <td class="text-center">${gw.name}</td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center ${getQueClass(gw.que)}">缺${gw.que}</td>
+                                    <td class="text-center"></td>
+                                </tr>`;
+                            });
+                        }
+                    });
+                }
+            });
+            // 不加合计行：三级部门明细合计(6)与总缺口(4)不一致，因商务渠道组(+1)和增长中心管理岗(+1)超编抵消
+            tbody.innerHTML = html;
+        }
+
+        function toggleZengzhangVacancy(deptName) {
+            const row = document.querySelector(`.vacancy-row-zz[data-dept="${deptName}"]`);
+            const subRows = document.querySelectorAll(`.vacancy-sub-zz[data-parent="${deptName}"]`);
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                subRows.forEach(r => {
+                    r.classList.remove('visible');
+                    r.classList.remove('expanded');
+                    const itemName = r.getAttribute('data-item');
+                    document.querySelectorAll(`.vacancy-gangwei-zz[data-parent-dept="${deptName}"][data-parent-item="${itemName}"]`).forEach(gw => gw.classList.remove('visible'));
+                });
+            } else {
+                row.classList.add('expanded');
+                subRows.forEach(r => r.classList.add('visible'));
+            }
+        }
+
+        function toggleZengzhangVacancyItem(deptName, itemName) {
+            const row = document.querySelector(`.vacancy-sub-row-zz[data-parent="${deptName}"][data-item="${itemName}"]`);
+            const gangweiRows = document.querySelectorAll(`.vacancy-gangwei-zz[data-parent-dept="${deptName}"][data-parent-item="${itemName}"]`);
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                gangweiRows.forEach(r => r.classList.remove('visible'));
+            } else {
+                row.classList.add('expanded');
+                gangweiRows.forEach(r => r.classList.add('visible'));
+            }
+        }
+
+        // 初始化运营中心空缺岗位详情表格（可折叠）
+        function initYunyingVacancyTable() {
+            const tbody = document.getElementById('yunying-vacancy-body');
+            let html = '';
+
+            kanbanData.yunying_vacancy.forEach(dept => {
+                html += `<tr class="region-row vacancy-row-yy" data-dept="${dept.name}" onclick="toggleYunyingVacancy('${dept.name}')">
+                    <td style="cursor:pointer;">
+                        <span class="expand-icon" id="icon-yy-${dept.name}">▶</span>
+                        <strong>${dept.name}</strong>
+                    </td>
+                    <td class="text-center">${dept.bian}</td>
+                    <td class="text-center">${dept.zai}</td>
+                    <td class="text-center ${dept.que > 0 ? 'que-positive' : 'que-negative'}">${dept.que > 0 ? '+' : ''}${dept.que}</td>
+                    <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
+                </tr>`;
+
+                dept.items.forEach(item => {
+                    const hasGangwei = item.gangweis && item.gangweis.length > 0;
+                    html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();toggleYunyingVacancyItem('${dept.name}','${item.name}')">
+                        <td style="${hasGangwei ? 'cursor:pointer;' : ''}">
+                            ${hasGangwei ? '<span class="expand-icon" id="icon-yy-' + dept.name + '-' + item.name + '">▶</span>' : '<span style="margin-left:16px;"></span>'}
+                            ${item.name}
+                        </td>
+                        <td class="text-center">${item.bian}</td>
+                        <td class="text-center">${item.zai}</td>
+                        <td class="text-center ${item.que > 0 ? 'que-positive' : item.que < 0 ? 'que-negative' : ''}">${item.que > 0 ? '+' : ''}${item.que}</td>
+                        <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
+                    </tr>`;
+
+                    if (hasGangwei) {
+                        item.gangweis.forEach(gw => {
+                            html += `<tr class="sub-row gangwei-row" data-parent-dept="${dept.name}" data-parent-item="${item.name}">
+                                <td>${gw.name}</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center que-positive">+${gw.que}</td>
+                                <td class="text-center">-</td>
+                            </tr>`;
+                        });
+                    }
+                });
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function toggleYunyingVacancy(deptName) {
+            const row = document.querySelector(`.vacancy-row-yy[data-dept="${deptName}"]`);
+            const subRows = document.querySelectorAll(`.vacancy-sub-row-yy[data-parent="${deptName}"]`);
+            const icon = document.getElementById(`icon-yy-${deptName}`);
+
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                subRows.forEach(r => {
+                    r.classList.remove('visible');
+                    r.classList.remove('expanded');
+                    const itemName = r.getAttribute('data-item');
+                    document.querySelectorAll(`.gangwei-row[data-parent-dept="${deptName}"][data-parent-item="${itemName}"]`).forEach(gw => gw.classList.remove('visible'));
+                    const gwIcon = document.getElementById(`icon-yy-${deptName}-${itemName}`);
+                    if (gwIcon) gwIcon.textContent = '▶';
+                });
+                icon.textContent = '▶';
+            } else {
+                row.classList.add('expanded');
+                subRows.forEach(r => r.classList.add('visible'));
+                icon.textContent = '▼';
+            }
+        }
+
+        function toggleYunyingVacancyItem(deptName, itemName) {
+            const row = document.querySelector(`.vacancy-sub-row-yy[data-parent="${deptName}"][data-item="${itemName}"]`);
+            const gangweiRows = document.querySelectorAll(`.gangwei-row[data-parent-dept="${deptName}"][data-parent-item="${itemName}"]`);
+            const icon = document.getElementById(`icon-yy-${deptName}-${itemName}`);
+
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                gangweiRows.forEach(r => r.classList.remove('visible'));
+                icon.textContent = '▶';
+            } else {
+                row.classList.add('expanded');
+                gangweiRows.forEach(r => r.classList.add('visible'));
+                icon.textContent = '▼';
+            }
+        }
+
+        // 初始化月度数据
+        document.getElementById('monthly-hire').innerHTML = kanbanData.monthly.hire + '<span class="unit">人</span>';
+        document.getElementById('monthly-leave').innerHTML = kanbanData.monthly.leave + '<span class="unit">人</span>';
+
+        // 初始化所有图表
+        initProgressBars();
+        initRegionTable();
+        initRegionChart();
+        initJiaoxueTable();
+        initJiaoxueVacancyTable();
+        initZengzhangVacancyTable();
+        initYunyingVacancyTable();
+
+        // 窗口resize
+        window.addEventListener('resize', function() {
+            chartRegion?.resize();
+        });
+    </script>
+</body>
+</html>
