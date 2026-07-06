@@ -921,12 +921,14 @@
             const totalQue = kanbanData.region_summary.reduce((s, r) => s + r.total_que, 0);
             const totalRate = (totalZai / totalBian * 100).toFixed(1);
             const totalTemp = Object.values(kanbanData.temp_data.region).reduce((s, r) => s + (r.total || 0), 0);
+            const tempKC = Object.values(kanbanData.temp_data.region).reduce((s, r) => s + (r.kc || 0), 0);
+            const tempXX = Object.values(kanbanData.temp_data.region).reduce((s, r) => s + (r.xx || 0), 0);
             html += `<tr class="subtotal">
                 <td class="text-center"><strong>合计</strong></td>
-                <td class="text-center col-kc">${formatNum(totalKc)}</td>
+                <td class="text-center col-kc">${formatBian(totalKc, tempKC)}</td>
                 <td class="text-center col-kc">${formatNum(totalKcZai)}</td>
                 <td class="text-center col-kc ${getQueClass(totalKcQue)}">${formatQue(totalKcQue)}</td>
-                <td class="text-center col-xx">${formatNum(totalXx)}</td>
+                <td class="text-center col-xx">${formatBian(totalXx, tempXX)}</td>
                 <td class="text-center col-xx">${formatNum(totalXxZai)}</td>
                 <td class="text-center col-xx ${getQueClass(totalXxQue)}">${formatQue(totalXxQue)}</td>
                 <td class="text-center col-total"><strong>${formatBian(totalBian, totalTemp)}</strong></td>
@@ -1176,11 +1178,34 @@
             let html = '';
 
             kanbanData.yunying_vacancy.forEach(dept => {
-                // Count items with vacancies
+                // Count items with vacancies, check if only "专员" sub-item has vacancy
                 const vacancyItems = dept.items.filter(item => item.que !== 0);
+                const singleZhuanYuan = vacancyItems.length === 1 && vacancyItems[0].name === '专员' && vacancyItems[0].gangweis && vacancyItems[0].gangweis.length > 0;
                 
-                if (vacancyItems.length <= 1 && vacancyItems.length > 0) {
-                    // Flatten: show item directly as a row, no group wrapper
+                if (singleZhuanYuan) {
+                    // Only "专员" sub-item has vacancy: show group row directly, expand to gangweis
+                    const item = vacancyItems[0];
+                    html += `<tr class="region-row vacancy-row-yy" data-dept="${dept.name}" onclick="toggleYunyingDirect('${dept.name}')">
+                        <td style="cursor:pointer;">
+                            <span class="expand-icon" id="icon-yy-direct-${dept.name}">▶</span>
+                            <strong>${dept.name}</strong>
+                        </td>
+                        <td class="text-center">${dept.bian}</td>
+                        <td class="text-center">${dept.zai}</td>
+                        <td class="text-center ${dept.que > 0 ? 'que-positive' : 'que-negative'}">${dept.que > 0 ? '+' : ''}${dept.que}</td>
+                        <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
+                    </tr>`;
+                    item.gangweis.forEach(g => {
+                        html += `<tr class="sub-row vacancy-sub-direct vacancy-sub-row-yy" data-parent="${dept.name}" style="display:none;">
+                            <td style="padding-left:36px;">${g.name}</td>
+                            <td class="text-center"></td>
+                            <td class="text-center"></td>
+                            <td class="text-center que-positive">+${g.que}</td>
+                            <td class="text-center"></td>
+                        </tr>`;
+                    });
+                } else if (vacancyItems.length <= 1 && vacancyItems.length > 0) {
+                    // Single non-专员 item with vacancy: flatten to single row
                     const item = vacancyItems[0];
                     const hasGangwei = item.gangweis && item.gangweis.length > 0;
                     const flatClick = hasGangwei ? "onclick=\"toggleYunyingVacancyItem('" + dept.name + "','" + item.name + "')\" style=\"cursor:pointer;\"" : "";
@@ -1194,7 +1219,7 @@
                         <td class="text-center ${item.que > 0 ? 'que-positive' : item.que < 0 ? 'que-negative' : ''}">${item.que > 0 ? '+' : ''}${item.que}</td>
                         <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
                     </tr>`;
-                    // Render gangweis directly (no sub-row wrapper)
+                    // Render gangweis directly
                     if (hasGangwei) {
                         item.gangweis.forEach(g => {
                             html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" style="display:none;">
@@ -1254,6 +1279,22 @@
                 }
             });
             tbody.innerHTML = html;
+        }
+
+        function toggleYunyingDirect(deptName) {
+            const row = document.querySelector(`.vacancy-row-yy[data-dept="${deptName}"]`);
+            const subRows = document.querySelectorAll(`.vacancy-sub-direct[data-parent="${deptName}"]`);
+            const icon = document.getElementById(`icon-yy-direct-${deptName}`);
+
+            if (row.classList.contains('expanded')) {
+                row.classList.remove('expanded');
+                subRows.forEach(r => r.classList.remove('visible'));
+                icon.textContent = '▶';
+            } else {
+                row.classList.add('expanded');
+                subRows.forEach(r => r.classList.add('visible'));
+                icon.textContent = '▼';
+            }
         }
 
         function toggleYunyingVacancy(deptName) {
