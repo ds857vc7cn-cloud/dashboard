@@ -1012,7 +1012,6 @@
             // 只显示有空缺的二级部门
             const vacancyDepts = kanbanData.jiaoxue_vacancy.filter(dept => dept.que > 0);
             vacancyDepts.forEach(dept => {
-                // 二级部门汇总行（可点击展开）
                 const hasItems = dept.items && dept.items.length > 0;
                 const arrowClass = hasItems ? '' : 'style="visibility:hidden"';
                 html += `<tr class="region-row vacancy-row" data-dept="${dept.name}" onclick="toggleVacancy('${dept.name}')">
@@ -1022,26 +1021,31 @@
                     <td class="text-center ${getQueClass(dept.que)}">${formatQue(dept.que)}</td>
                     <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
                 </tr>`;
-                // 三级部门行（默认隐藏，可点击展开）
                 if (hasItems) {
                     dept.items.forEach(item => {
                         const hasGangweis = item.gangweis && item.gangweis.length > 0;
-                        const itemArrowClass = hasGangweis ? '' : 'style="visibility:hidden"';
+                        const isFull = item.que === 0;
+                        const itemStyle = isFull ? ' style="color:#86909c;"' : '';
+                        const itemArrowClass = (hasGangweis && !isFull) ? '' : 'style="visibility:hidden"';
+                        const itemBadge = isFull ? ' <span class="rate-badge rate-good" style="font-size:11px;">✓满编</span>' : '';
+                        const tempBadge = item.temp ? `<span style="font-size:11px;color:#86909c;margin-left:4px;">(含${item.temp}临编)</span>` : '';
                         html += `<tr class="sub-row vacancy-sub vacancy-sub-row" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();toggleVacancyItem('${dept.name}','${item.name}')">
-                            <td class="text-center" style="position:relative;padding-left:36px"><span class="toggle-arrow" ${itemArrowClass}></span>${item.name}</td>
+                            <td class="text-center" style="position:relative;padding-left:36px"${itemStyle}><span class="toggle-arrow" ${itemArrowClass}></span>${item.name}${tempBadge}${itemBadge}</td>
                             <td class="text-center">${formatNum(item.bian)}</td>
                             <td class="text-center">${formatNum(item.zai)}</td>
                             <td class="text-center ${getQueClass(item.que)}">${formatQue(item.que)}</td>
                             <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
                         </tr>`;
-                        // 岗位名称行（默认隐藏）
                         if (hasGangweis) {
                             item.gangweis.forEach(gw => {
+                                const gwFull = gw.que === 0;
+                                const gwStyle = gwFull ? ' style="color:#86909c;"' : '';
+                                const gwQueText = gw.que > 0 ? `缺${gw.que}` : '<span class="rate-badge rate-good" style="font-size:11px;">✓满编</span>';
                                 html += `<tr class="gangwei-row vacancy-gangwei" data-parent-dept="${dept.name}" data-parent-item="${item.name}">
-                                    <td class="text-center">${gw.name}</td>
+                                    <td class="text-center"${gwStyle}>${gw.name}</td>
                                     <td class="text-center"></td>
                                     <td class="text-center"></td>
-                                    <td class="text-center ${getQueClass(gw.que)}">缺${gw.que}</td>
+                                    <td class="text-center ${getQueClass(gw.que)}">${gwQueText}</td>
                                     <td class="text-center"></td>
                                 </tr>`;
                             });
@@ -1114,12 +1118,14 @@
                 </tr>`;
                 if (hasItems) {
                     dept.items.forEach(item => {
-                        // 只展示有空缺或超编的三级部门
-                        if (item.que === 0) return;
                         const hasGangweis = item.gangweis && item.gangweis.length > 0;
-                        const itemArrowClass = hasGangweis ? '' : 'style="visibility:hidden"';
+                        const isFull = item.que === 0;
+                        const itemStyle = isFull ? ' style="color:#86909c;"' : '';
+                        const itemArrowClass = (hasGangweis && !isFull) ? '' : 'style="visibility:hidden"';
+                        const itemBadge = isFull ? ' <span class="rate-badge rate-good" style="font-size:11px;">✓满编</span>' : '';
+                        const tempBadge = item.temp ? `<span style="font-size:11px;color:#86909c;margin-left:4px;">(含${item.temp}临编)</span>` : '';
                         html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-zz" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();toggleZengzhangVacancyItem('${dept.name}','${item.name}')">
-                            <td class="text-center" style="position:relative;padding-left:36px"><span class="toggle-arrow" ${itemArrowClass}></span>${item.name}</td>
+                            <td class="text-center" style="position:relative;padding-left:36px"${itemStyle}><span class="toggle-arrow" ${itemArrowClass}></span>${item.name}${tempBadge}${itemBadge}</td>
                             <td class="text-center">${formatNum(item.bian)}</td>
                             <td class="text-center">${formatNum(item.zai)}</td>
                             <td class="text-center ${getQueClass(item.que)}">${formatQue(item.que)}</td>
@@ -1127,11 +1133,14 @@
                         </tr>`;
                         if (hasGangweis) {
                             item.gangweis.forEach(gw => {
+                                const gwFull = gw.que === 0;
+                                const gwStyle = gwFull ? ' style="color:#86909c;"' : '';
+                                const gwQueText = gw.que > 0 ? `缺${gw.que}` : '<span class="rate-badge rate-good" style="font-size:11px;">✓满编</span>';
                                 html += `<tr class="gangwei-row vacancy-gangwei-zz" data-parent-dept="${dept.name}" data-parent-item="${item.name}">
-                                    <td class="text-center">${gw.name}</td>
+                                    <td class="text-center"${gwStyle}>${gw.name}</td>
                                     <td class="text-center"></td>
                                     <td class="text-center"></td>
-                                    <td class="text-center ${getQueClass(gw.que)}">缺${gw.que}</td>
+                                    <td class="text-center ${getQueClass(gw.que)}">${gwQueText}</td>
                                     <td class="text-center"></td>
                                 </tr>`;
                             });
@@ -1178,19 +1187,19 @@
             let html = '';
 
             kanbanData.yunying_vacancy.forEach(dept => {
-                const vacancyItems = dept.items.filter(item => item.que !== 0);
+                const hasAnyQue = dept.items.some(item => item.que !== 0);
                 
-                if (vacancyItems.length === 0) {
-                    // All full
+                if (!hasAnyQue) {
+                    // 全员满编：单行不可展开
                     html += `<tr class="vacancy-row-yy">
                         <td><strong>${dept.name}</strong></td>
                         <td class="text-center">${dept.bian}</td>
                         <td class="text-center">${dept.zai}</td>
                         <td class="text-center">0</td>
-                        <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
+                        <td class="text-center"><span class="rate-badge rate-good">100.0%</span></td>
                     </tr>`;
                 } else {
-                    // Has vacancies: show group row (expandable)
+                    // 有缺口：组行可展开，显示全部子项
                     html += `<tr class="region-row vacancy-row-yy" data-dept="${dept.name}" onclick="toggleYunyingVacancy('${dept.name}')">
                         <td style="cursor:pointer;">
                             <span class="expand-icon" id="icon-yy-${dept.name}">▶</span>
@@ -1201,28 +1210,59 @@
                         <td class="text-center ${dept.que > 0 ? 'que-positive' : 'que-negative'}">${dept.que > 0 ? '+' : ''}${dept.que}</td>
                         <td class="text-center"><span class="rate-badge ${getRateClass(dept.man_rate)}">${dept.man_rate.toFixed(1)}%</span></td>
                     </tr>`;
-                    // Sub-rows: skip "专员" wrapper, show gangweis directly
-                    vacancyItems.forEach(item => {
+                    
+                    dept.items.forEach(item => {
                         const hasGangwei = item.gangweis && item.gangweis.length > 0;
                         const isZhuanYuan = item.name === '专员';
+                        const isFull = item.que === 0;
+                        const styleCls = isFull ? ' style="color:#86909c;"' : '';
+                        const tempBadge = item.temp ? `<span style="font-size:11px;color:#86909c;margin-left:4px;">(含${item.temp}临编)</span>` : '';
+                        const badge = isFull ? ' <span class="rate-badge rate-good" style="font-size:11px;">✓满编</span>' : '';
                         
                         if (isZhuanYuan && hasGangwei) {
-                            // "专员" with gangweis: directly show gangwei rows (skip 专员 level)
+                            // 专员+有gangwei：可展开，展开后显示全部岗位明细
+                            html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="专员" onclick="event.stopPropagation();toggleYunyingVacancyItem('${dept.name}','专员')">
+                                <td style="cursor:pointer;"${styleCls}>
+                                    <span class="expand-icon" id="icon-yy-${dept.name}-专员">▶</span>
+                                    专员${tempBadge}${badge}
+                                </td>
+                                <td class="text-center">${item.bian}</td>
+                                <td class="text-center">${item.zai}</td>
+                                <td class="text-center ${item.que > 0 ? 'que-positive' : ''}">${item.que > 0 ? '+' : ''}${item.que}</td>
+                                <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
+                            </tr>`;
+                            // 全部gangwei（含缺口=0的）
                             item.gangweis.forEach(g => {
-                                html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}">
-                                    <td style="padding-left:36px;">${g.name}</td>
+                                const gwFull = g.que === 0;
+                                const gwStyle = gwFull ? ' style="color:#86909c;"' : '';
+                                const gwQue = g.que > 0 ? `<span class="que-positive">+${g.que}</span>` : '<span class="rate-badge rate-good" style="font-size:11px;">✓满编</span>';
+                                html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy gangwei-row" data-parent-dept="${dept.name}" data-parent-item="专员">
+                                    <td style="padding-left:36px;"${gwStyle}>${g.name}</td>
                                     <td class="text-center"></td>
                                     <td class="text-center"></td>
-                                    <td class="text-center que-positive">+${g.que}</td>
+                                    <td class="text-center">${gwQue}</td>
                                     <td class="text-center"></td>
                                 </tr>`;
                             });
-                        } else if (hasGangwei) {
-                            // Named item with gangweis: show item row, expandable
+                            // 差值：专员总缺口 > 已知gangwei缺口之和时，补充"其他"行
+                            const gangweiQueSum = item.gangweis.reduce((s, g) => s + Math.max(g.que, 0), 0);
+                            const otherQue = item.que - gangweiQueSum;
+                            if (otherQue > 0) {
+                                const otherName = '其他' + dept.name.replace(/[组]$/, '') + '专员';
+                                html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy gangwei-row" data-parent-dept="${dept.name}" data-parent-item="专员">
+                                    <td style="padding-left:36px;color:#86909c;font-style:italic;">${otherName}</td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center"></td>
+                                    <td class="text-center"><span class="que-positive">+${otherQue}</span></td>
+                                    <td class="text-center"></td>
+                                </tr>`;
+                            }
+                        } else if (hasGangwei && !isZhuanYuan) {
+                            // 非专员+有gangwei：可展开，展开后显示全部gangwei
                             html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" onclick="event.stopPropagation();toggleYunyingVacancyItem('${dept.name}','${item.name}')">
-                                <td style="cursor:pointer;">
+                                <td style="cursor:pointer;"${styleCls}>
                                     <span class="expand-icon" id="icon-yy-${dept.name}-${item.name}">▶</span>
-                                    ${item.name}
+                                    ${item.name}${tempBadge}${badge}
                                 </td>
                                 <td class="text-center">${item.bian}</td>
                                 <td class="text-center">${item.zai}</td>
@@ -1230,18 +1270,21 @@
                                 <td class="text-center"><span class="rate-badge ${getRateClass(item.man_rate)}">${item.man_rate.toFixed(1)}%</span></td>
                             </tr>`;
                             item.gangweis.forEach(g => {
-                                html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}" data-item="${item.name}" style="display:none;">
-                                    <td style="padding-left:36px;">${g.name}</td>
+                                const gwFull = g.que === 0;
+                                const gwStyle = gwFull ? ' style="color:#86909c;"' : '';
+                                const gwQue = g.que > 0 ? `<span class="que-positive">+${g.que}</span>` : '<span class="rate-badge rate-good" style="font-size:11px;">✓满编</span>';
+                                html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy gangwei-row" data-parent-dept="${dept.name}" data-parent-item="${item.name}">
+                                    <td style="padding-left:36px;"${gwStyle}>${g.name}</td>
                                     <td class="text-center"></td>
                                     <td class="text-center"></td>
-                                    <td class="text-center que-positive">+${g.que}</td>
+                                    <td class="text-center">${gwQue}</td>
                                     <td class="text-center"></td>
                                 </tr>`;
                             });
                         } else {
-                            // Named item without gangweis: show directly
+                            // 无gangwei（含专员无gangwei）：直接显示
                             html += `<tr class="sub-row vacancy-sub-zz vacancy-sub-row-yy" data-parent="${dept.name}">
-                                <td style="padding-left:16px;">${item.name}</td>
+                                <td style="padding-left:16px;"${styleCls}>${item.name}${tempBadge}${badge}</td>
                                 <td class="text-center">${item.bian}</td>
                                 <td class="text-center">${item.zai}</td>
                                 <td class="text-center ${item.que > 0 ? 'que-positive' : item.que < 0 ? 'que-negative' : ''}">${item.que > 0 ? '+' : ''}${item.que}</td>
